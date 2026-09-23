@@ -1,0 +1,150 @@
+<!--
+The files in this repo are GENERATED. The source of truth is a private
+repository (an export tool wrote this copy). There is no need to edit this
+repo (the next export would overwrite it). To suggest changes, open an
+issue or a pull request, and a maintainer will review and apply the changes
+to the private source manually (and then re-export). See CONTRIBUTING.md
+for more details.
+-->
+
+{{ define "subscription" }}
+{{ template "header" .}}
+<section class="section">
+    {{ if not .Data.ShowManage }}
+        <h2>{{ L.T "public.unsubTitle" }}</h2>
+        <form method="post" class="unsub-form">
+            <div>
+                {{ if .Data.AllowBlocklist }}
+                    <p>{{ L.T "public.unsubHelp" }}</p>
+                    <p>
+                        <input id="privacy-blocklist" type="checkbox" name="blocklist" value="true" />
+                        <label for="privacy-blocklist">{{ L.T "public.unsubFull" }}</label>
+                    </p>
+                {{ end }}
+
+                <p>
+                    <button type="submit" class="button" id="btn-unsub">{{ L.T "public.unsub" }}</button>
+                </p>
+
+                {{ if .Data.AllowPreferences }}
+                    <a href="?manage=true">{{ L.T "public.managePrefs" }}</a>
+                {{ end }}
+            </div>
+        </form>
+    {{ else }}
+        <form method="post" class="manage-form">
+            <div>
+                <input type="hidden" name="manage" value="true" />
+
+                <h2>{{ L.T "public.managePrefs" }}</h2>
+                <label for="manage-name">What should we call you?</label>
+                <span id="manage-name-help" class="description">It doesn't have to be your legal name (change it whenever you like).</span>
+                <input id="manage-name" type="text" name="name" value="{{ .Data.Subscriber.Name }}" maxlength="256" aria-describedby="manage-name-help" required />
+
+                {{ if .Data.Subscriptions }}
+                    <br /><br />
+                    <h3>{{ L.T "public.managePrefsUnsub" }}</h3>
+                    <ul class="lists">
+                        {{ range $i, $l := .Data.Subscriptions }}
+                            {{ if ne $l.SubscriptionStatus.Value "unsubscribed" }}
+                                <li>
+                                    <input id="l-{{ $l.UUID}}" type="checkbox" name="l" value="{{ $l.UUID }}" checked />
+                                    <label for="l-{{ $l.UUID}}">{{ $l.Name }}</label>
+                                </li>
+                            {{ end }}
+                        {{ end }}
+                    </ul>
+                {{ end }}
+
+                {{ if .Data.AllowBlocklist }}
+                    <p>
+                        <input id="privacy-blocklist" type="checkbox" name="blocklist" value="true" onchange="unsubAll(event)" />
+                        <label for="privacy-blocklist">{{ L.T "public.unsubFull" }}</label>
+                    </p>
+                {{ end }}
+
+                <p>
+                    <button type="submit" class="button" id="btn-unsub">{{ L.T "globals.buttons.save" }}</button>
+                </p>
+            </div>
+        </form>
+    {{ end }}
+</section>
+
+{{ if or .Data.AllowExport .Data.AllowWipe }}
+<form id="data-form" class="data-form" method="post" action="" onsubmit="return handleData()">
+    <section>
+        <h2>{{ L.T "public.privacyTitle" }}</h2>
+        <p class="description">
+            Download a copy of what we hold, or delete it. You don't have to ask anyone
+            (and we aren't told which one you picked).
+        </p>
+        {{ if .Data.AllowExport }}
+        <div class="row">
+            <input id="privacy-export" type="radio" name="data-action" value="export" required />
+            <label for="privacy-export"><strong>{{ L.T "public.privacyExport" }}</strong></label>
+            <br />
+            {{ L.T "public.privacyExportHelp" }}
+        </div>
+        {{ end }}
+
+        {{ if .Data.AllowWipe }}
+        <div class="row">
+            <input id="privacy-wipe" type="radio" name="data-action" value="wipe" required />
+            <label for="privacy-wipe"><strong>{{ L.T "public.privacyWipe" }}</strong></label>
+            <br />
+            {{ L.T "public.privacyWipeHelp" }}
+        </div>
+        {{ end }}
+        <p>
+            <input type="submit" value="{{ L.T "globals.buttons.continue" }}" class="button button-outline" />
+        </p>
+        <p class="description">
+            These two buttons need JavaScript (nothing else on this page does). If you
+            have it turned off, email
+            <a href="mailto:directactionvillage@proton.me">directactionvillage@proton.me</a>
+            instead and a person will do it for you. Unsubscribing above works either way.
+        </p>
+    </section>
+</form>
+<script>
+    function handleData() {
+        var a = document.querySelector('input[name="data-action"]:checked').value,
+            f = document.querySelector("#data-form");
+        if (a == "export") {
+            f.action = "/subscription/export/{{ .Data.SubUUID }}";
+            return true;
+        } else if (confirm("{{ L.T "public.privacyConfirmWipe" }}")) {
+            f.action = "/subscription/wipe/{{ .Data.SubUUID }}";
+            return true;
+        }
+        return false;
+    }
+
+    function unsubAll(e) {
+        if (e.target.checked) {
+            document.querySelector("input[name=name]").disabled = "disabled";
+        } else {
+            document.querySelector("input[name=name]").removeAttribute("disabled");
+        }
+
+        document.querySelectorAll('input[type=checkbox][name=l]').forEach(function(l) {
+            if (e.target.checked) {
+                l.disabled = "disabled";
+            } else {
+                l.removeAttribute("disabled");
+            }
+        });
+    }
+</script>
+{{ end }}
+
+<p class="description">
+    You can read
+    <a href="https://directactionvillage.org/data_policy_081926.html">what happens to what you type here</a>,
+    and the code that handles it on
+    <a href="https://github.com/DirectActionVillage">our GitHub</a>.
+</p>
+
+{{ template "footer" .}}
+{{ end }}

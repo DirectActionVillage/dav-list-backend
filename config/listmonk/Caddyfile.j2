@@ -1,0 +1,58 @@
+# The files in this repo are GENERATED. The source of truth is a private
+# repository (an export tool wrote this copy). There is no need to edit this
+# repo (the next export would overwrite it). To suggest changes, open an
+# issue or a pull request, and a maintainer will review and apply the changes
+# to the private source manually (and then re-export). See CONTRIBUTING.md
+# for more details.
+
+{# Managed by Ansible, so edit the role template instead. We publish this
+   file, so it shouldn't include hosts or addresses. The edge host has the
+   same path list. #}
+{
+	# The admin API stays on localhost:2019 (`caddy reload` needs it).
+}
+
+# The link listener (all the edge host can see of this box). It's plain HTTP
+# inside WireGuard, and only binds the link address.
+http://:{{ listmonk_proxy_tunnel_port }} {
+	bind {{ listmonk_proxy_tunnel_ip }}
+
+	# /admin* and /api* return 404, except the captcha challenge. This runs
+	# first, so we exclude the captcha path here too.
+	@blocked {
+		path /admin* /api*
+		not path {{ listmonk_proxy_captcha_path }}
+	}
+	handle @blocked {
+		respond 404
+	}
+
+{% if listmonk_grant_form_enabled %}
+	# Grant form. Its own handler on loopback takes these (not listmonk). We
+	# encrypt each application to the committee's age keys before it hits disk.
+	@grantform path {{ listmonk_grant_form_paths | join(' ') }}
+	handle @grantform {
+		reverse_proxy {{ listmonk_grant_form_upstream }}
+	}
+
+{% endif %}
+	# The public paths. We allow every method (one-click unsubscribe is a
+	# POST).
+	@public path {{ (listmonk_proxy_public_paths + (listmonk_proxy_archive_paths if listmonk_proxy_archive_public else [])) | join(' ') }}
+	handle @public {
+		reverse_proxy {{ listmonk_address }}
+	}
+
+	# Everything else returns 404, including /, /link/*, /campaign/*, and
+	# /webhooks/*.
+	handle {
+		respond 404
+	}
+}
+
+# The private network listener, where we reach the admin UI. It passes
+# everything through, and the edge host can't reach it.
+http://:{{ listmonk_proxy_lan_port }} {
+	bind {{ ansible_host }}
+	reverse_proxy {{ listmonk_address }}
+}

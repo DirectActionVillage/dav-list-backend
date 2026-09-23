@@ -1,0 +1,94 @@
+# The files in this repo are GENERATED. The source of truth is a private
+# repository (an export tool wrote this copy). There is no need to edit this
+# repo (the next export would overwrite it). To suggest changes, open an
+# issue or a pull request, and a maintainer will review and apply the changes
+# to the private source manually (and then re-export). See CONTRIBUTING.md
+# for more details.
+
+---
+# The public half of the listmonk_exposure defaults. private.yml has the
+# rest (addresses, keys, sshd, and firewall rules). We publish this file.
+#
+# The edge host is a small Debian 13 VPS. It serves the public pages and
+# handles the list mail. The engine signs mail before it gets here, so this box
+# doesn't need a DKIM key. It only talks to the engine over WireGuard (the
+# engine starts that connection).
+
+# --- self-hosted MTA ports ----------------------------------------------------
+# The mail ports live in this role because it owns the firewall (which drops
+# anything we don't open).
+#
+# On. Set false and apply with `--tags firewall` to close the ports. Must match
+# the ports in roles/mail_relay.
+listmonk_exposure_mail_enabled: true
+# Open to the internet for bounces. Postfix only takes mail for our bounce
+# subdomain, and only relays for the engine.
+listmonk_exposure_mail_smtp_port: 25
+# Link only. The engine sends signed mail on 587 and reads bounces on 110.
+listmonk_exposure_mail_submission_port: 587
+listmonk_exposure_mail_pop3_port: 110
+
+# The WireGuard port. The engine dials in here (this box doesn't dial out to
+# the engine).
+listmonk_exposure_wg_port: 51820
+
+# --- WireGuard link, edge end -------------------------------------------------
+# This end only listens. It can only reach the engine's link address, even if
+# someone takes over this box.
+
+# Set false to skip the WireGuard setup (on a box without a key yet).
+listmonk_exposure_wg_enabled: true
+listmonk_exposure_wg_if: wg0
+# Must match listmonk_tunnel_mtu on the engine.
+listmonk_exposure_wg_mtu: 1280
+
+# --- Caddy path-allowlist edge proxy ------------------------------------------
+# Caddy gets the TLS cert and sends the allowed paths to the engine.
+
+# On. Only turn this on once the site's DNS points here, or Let's Encrypt
+# requests fail and count against the rate limit.
+listmonk_exposure_caddy_enabled: true
+
+# The public site (its A record points here). Must match listmonk_public_site.
+listmonk_exposure_site: "news.directactionvillage.org"
+
+# The engine's link port. We don't publish its address. Must match
+# listmonk_proxy_tunnel_port.
+listmonk_exposure_upstream_port: 8080
+
+# Caddy pinned to the Debian package. It gets a Let's Encrypt certificate so
+# subscribers' browsers trust it.
+listmonk_exposure_caddy_version: "2.6.2-12+deb13u1"
+listmonk_exposure_hsts_max_age: 31536000
+
+# The only public path under /api (the signup form's anti-spam widget). Must
+# match listmonk_proxy_captcha_path.
+listmonk_exposure_captcha_path: "/api/public/captcha/altcha"
+
+listmonk_exposure_public_paths:
+  - /subscription/*
+  - "/api/public/captcha/altcha"
+  - /uploads/*
+  - /public/static/*
+  - /public/custom.css
+  - /public/custom.js
+# The public archive is off. Must match listmonk_proxy_archive_public.
+listmonk_exposure_archive_public: false
+listmonk_exposure_archive_paths:
+  - /archive
+  - /archive/*
+  - /archive.xml
+
+# --- grant application form: one more path through the edge -------------------
+# This box sees grant applications in the clear as they pass through. It
+# doesn't store them or keep an access log. The engine encrypts each
+# application to keys this box doesn't have.
+#
+# Off. When we turn it on, flip listmonk_grant_form_enabled on the engine
+# first, then this.
+listmonk_exposure_grant_form_enabled: false
+
+# Both paths, so a trailing slash still works.
+listmonk_exposure_grant_form_paths:
+  - /grants/apply
+  - /grants/apply/

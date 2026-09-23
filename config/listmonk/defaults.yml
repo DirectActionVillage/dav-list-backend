@@ -1,0 +1,336 @@
+# The files in this repo are GENERATED. The source of truth is a private
+# repository (an export tool wrote this copy). There is no need to edit this
+# repo (the next export would overwrite it). To suggest changes, open an
+# issue or a pull request, and a maintainer will review and apply the changes
+# to the private source manually (and then re-export). See CONTRIBUTING.md
+# for more details.
+
+---
+# The public half of the listmonk defaults. private.yml has the rest. We
+# publish this file, comments too, so it should exclude addresses, hosts,
+# ticket numbers, providers, credential paths, etc.
+#
+# The engine is listmonk and PostgreSQL on a Debian 13 container. Only our
+# private network can reach the admin UI.
+
+# --- listmonk binary pin ---------------------------------------------------
+# We pin the version and check the sha256, so a tampered download fails. The
+# checksum is in listmonk_<version>_checksums.txt on the release page. Bump
+# both together.
+listmonk_version: "6.2.0"
+listmonk_tarball_url: "https://github.com/knadh/listmonk/releases/download/v{{ listmonk_version }}/listmonk_{{ listmonk_version }}_linux_amd64.tar.gz"
+listmonk_tarball_sha256: "ce78c89d8aac0df3ffe0e110b008e7bb5dae13e6ad0c57b43aa7094971e8698e"
+# The previous version's binary stays on disk here for a rollback.
+listmonk_src_dir: /usr/local/src
+listmonk_bin: /usr/local/bin/listmonk
+
+# --- public page override ---------------------------------------------------
+# listmonk builds its public pages into the binary. --static-dir points it at
+# our own copies instead, so we can change the words a subscriber reads. Set
+# false to go back to the built-in pages (doesn't touch data).
+listmonk_static_override_enabled: true
+listmonk_static_dir: /var/lib/listmonk/static
+
+# The page templates come from the source archive, so this is a second pinned
+# download. GitHub rebuilds these archives, so a checksum failure here is not
+# always tampering. The role README has the steps.
+listmonk_static_src_url: "https://github.com/knadh/listmonk/archive/refs/tags/v{{ listmonk_version }}.tar.gz"
+listmonk_static_src_sha256: "2cb6dc629280df366d3bf6e74384209b9caf0626bdb125f70a5e8a4a82197038"
+
+# A sentence from our own signup page. The health check looks for it on the
+# served page, so an upgrade that drops our copy fails the apply.
+listmonk_static_signup_assert_string: "It does not have to be your legal name"
+
+# --- service user + paths ----------------------------------------------------
+listmonk_user: listmonk
+listmonk_config_dir: /etc/listmonk
+listmonk_config: "{{ listmonk_config_dir }}/config.toml"
+# Also the unit's WorkingDirectory, so uploads land inside it.
+listmonk_data_dir: /var/lib/listmonk
+
+# listmonk listens on loopback when the local Caddy is on, and Caddy handles
+# every other listener.
+listmonk_address: "{{ '127.0.0.1:9000' if listmonk_local_proxy_enabled else '0.0.0.0:9000' }}"
+
+# --- database ------------------------------------------------------------------
+# The distro PostgreSQL, over a local unix socket with peer auth. The OS user is
+# the credential, so no database password exists anywhere.
+listmonk_pg_packages:
+  - postgresql
+  - postgresql-client
+listmonk_db_name: listmonk
+listmonk_db_user: listmonk
+listmonk_db_host: /var/run/postgresql
+listmonk_db_port: 5432
+
+# --- pre-image-backup logical dump -------------------------------------------
+# We dump the database before the nightly image backup, so we can restore from
+# a clean dump.
+listmonk_backup_dir: /var/backups/listmonk
+listmonk_backup_oncalendar: "*-*-* 02:00:00"
+listmonk_backup_retain_days: 7
+
+# --- send path ----------------------------------------------------------------
+# listmonk hands mail to Postfix on this same box, over loopback. Postfix signs
+# it with DKIM before it leaves, so this hop doesn't need login or TLS.
+listmonk_smtp_host: "127.0.0.1"
+listmonk_smtp_port: 25
+
+# Our daily send cap while the new sending address builds a reputation. Raise
+# it slowly. listmonk actually sends one more than this per window.
+listmonk_message_rate: 50
+listmonk_message_rate_window: "24h"
+
+# --- scoped WireGuard tunnel to the edge host ----------------------------------
+# The engine dials out to the edge host, so don't open an inbound port here. The
+# edge host never learns where the engine is. This link is always on.
+listmonk_tunnel_keepalive: 25
+# We use 1280 because this link runs inside our own VPN tunnel, and the default
+# 1420 would drop large packets. Must match listmonk_exposure_wg_mtu.
+listmonk_tunnel_mtu: 1280
+
+# --- exposure stage: loopback bind + the local allowlist proxy ----------------
+# On. listmonk binds loopback and the local Caddy owns every other listener.
+# Set false to fall back to a wide bind with no Caddy.
+listmonk_local_proxy_enabled: true
+
+# The public site. Its A record points at the edge host and never at the private
+# site. Must match listmonk_exposure_site in roles/listmonk_exposure.
+listmonk_public_site: "news.directactionvillage.org"
+# Every emailed link is built from this: confirm, unsubscribe, one-click
+# List-Unsubscribe. It must be the public site.
+listmonk_public_root_url: "https://{{ listmonk_public_site }}"
+
+# The local Caddy, pinned to the Debian package.
+listmonk_caddy_version: "2.6.2-12+deb13u1"
+# The link's interface and port. We don't publish its address.
+listmonk_proxy_tunnel_if: wg0
+listmonk_proxy_tunnel_port: 8080
+listmonk_proxy_lan_port: 9000
+
+# The signup form's anti-spam widget fetches its challenge here. It is the only
+# public path under /api.
+listmonk_proxy_captcha_path: "/api/public/captcha/altcha"
+
+# The public paths. The edge host has the same list. Anything else gets a
+# 404, like /admin*, /api*, /, /webhooks/*, and the open and click tracking
+# paths /link/* and /campaign/*.
+listmonk_proxy_public_paths:
+  - /subscription/*
+  - "/api/public/captcha/altcha"
+  - /uploads/*
+  - /public/static/*
+  - /public/custom.css
+  - /public/custom.js
+
+# The public campaign archive is off. The edge host has its own switch for it.
+listmonk_proxy_archive_public: false
+listmonk_proxy_archive_paths:
+  - /archive
+  - /archive/*
+  - /archive.xml
+
+# --- grant application form: route one path away from listmonk ----------------
+# A separate handler serves the grant form, since listmonk can't take custom
+# fields. It listens on loopback, and its settings are in private.yml.
+#
+# Off. When we turn it on, flip this first, then
+# listmonk_exposure_grant_form_enabled on the edge host.
+listmonk_grant_form_enabled: false
+
+# Both paths, so a trailing slash still works.
+listmonk_grant_form_paths:
+  - /grants/apply
+  - /grants/apply/
+
+# The handler's loopback listener, it isn't reachable from anywhere else.
+listmonk_grant_form_upstream: "127.0.0.1:8081"
+
+# --- the Caddy boot-race drop-in ---------------------------------------------
+# The Debian Caddy unit doesn't restart on failure, so we add a restart rule.
+listmonk_caddy_restart_sec: 15
+listmonk_caddy_start_limit_interval: 600
+listmonk_caddy_start_limit_burst: 10
+
+# --- exposure-chain liveness probe -------------------------------------------
+# Every five minutes we check the link and load the public site, and send an
+# alert if/when that changes.
+listmonk_liveness_enabled: true
+listmonk_liveness_oncalendar: "*:1/5"
+# A static file, so the probe never touches subscriber data.
+listmonk_liveness_front_door_url: "https://{{ listmonk_public_site }}/public/custom.css"
+listmonk_liveness_http_timeout: 15
+
+# --- local mail submission handshake -------------------------------------------
+# The probe also connects to the local mail server, reads its greeting, and
+# hangs up. Doesn't send mail.
+listmonk_liveness_smtp_host: 127.0.0.1
+listmonk_liveness_smtp_port: 25
+listmonk_liveness_smtp_timeout: 5
+
+# A sustained failure re-alerts after this long, then doubles the wait up to the
+# cap. Loud early, still present later, never one push per tick.
+listmonk_liveness_realert_initial: 900
+listmonk_liveness_realert_max: 21600
+# A heartbeat while healthy, at minimum priority so it does not wake a phone.
+listmonk_liveness_heartbeat_interval: 21600
+# Report a gap when the last completed run is older than this. Keep it well
+# above three timer intervals so jitter and a reboot stay quiet.
+listmonk_liveness_gap_threshold: 1200
+
+# --- settings as code ---------------------------------------------------------
+# We set the keys below in listmonk's database. The next apply undoes any
+# hand edit to them.
+#
+# Set false to leave all settings alone.
+listmonk_settings_enabled: true
+listmonk_settings_script: /usr/local/sbin/listmonk-settings.py
+# Report the diff on a real apply and write nothing. Needed for the first apply
+# on a box that does not have the reconciler yet, where a dry run has nothing to
+# run. Pass it on the command line.
+listmonk_settings_check_only: false
+listmonk_settings_http_timeout: 30
+# After a settings change listmonk restarts itself without systemd noticing.
+# We wait up to this many seconds for /health to come back.
+listmonk_settings_restart_deadline: 60
+
+# We only manage the keys listed here. The role README lists the ones we leave
+# alone.
+#
+# No password goes here. We send an empty string for secrets, which keeps the
+# stored value.
+listmonk_settings_managed:
+  # Every emailed link is built from this.
+  "app.root_url": "{{ listmonk_public_root_url }}"
+  "app.enable_public_subscription_page": true
+  # Follows the proxy switch above, so the two can't disagree.
+  "app.enable_public_archive": "{{ listmonk_proxy_archive_public | bool }}"
+  # No update check. We pin the version, so we don't need it.
+  "app.check_updates": false
+  # The warmup ceiling, from the send-path section above.
+  "app.message_sliding_window": true
+  "app.message_sliding_window_rate": "{{ listmonk_message_rate | int }}"
+  "app.message_sliding_window_duration": "{{ listmonk_message_rate_window }}"
+
+  # Tracking is off here, and the tracking paths aren't proxied either.
+  "privacy.disable_tracking": true
+  "privacy.individual_tracking": false
+  "privacy.unsubscribe_header": true
+  "privacy.allow_blocklist": true
+  "privacy.allow_preferences": true
+  "privacy.allow_export": true
+  "privacy.allow_wipe": true
+  # We do not store the address you signed up from.
+  "privacy.record_optin_ip": false
+
+  # The engine polls its own mailbox, so bounces work without an inbound listener.
+  "bounce.enabled": true
+  # Off for good. Anyone who could reach a bounce webhook could fake bounces.
+  "bounce.webhooks_enabled": false
+
+  # The signup form's captcha. hcaptcha's secret is absent on purpose.
+  "security.captcha":
+    altcha:
+      enabled: "{{ listmonk_captcha_altcha_enabled | bool }}"
+      complexity: 300000
+    hcaptcha:
+      enabled: false
+      key: ""
+
+  # The sender a subscriber sees. DKIM and SPF alignment depend on its domain.
+  "app.from_email": "Direct Action Village <news@directactionvillage.org>"
+  "app.notify_emails":
+    - "directactionvillage@proton.me"
+  # Still upstream's default, and it shows in the page title on the signup and
+  # confirm pages. Declared so it stops drifting, not because it is right.
+  "app.site_name": "Mailing list"
+  "app.lang": "en"
+  # Both empty as a privacy control. These become image URLs inside a
+  # newsletter, and one pointing off-box would tell that host a reader's address
+  # is live and what their IP is.
+  "app.logo_url": ""
+  "app.favicon_url": ""
+
+  # Double opt-in. Turning either off breaks it quietly.
+  "app.send_optin_confirmation": true
+  "app.show_optin_page": true
+
+  # Send speed per campaign, and how many errors in a row pause it.
+  "app.message_rate": 10
+  "app.batch_size": 1000
+  "app.concurrency": 10
+  "app.max_send_errors": 25
+
+  # One hard bounce or complaint blocklists an address. Three soft bounces do
+  # nothing, because a soft bounce is transient and should not punish a reader
+  # for their provider's bad day.
+  "bounce.actions":
+    hard:
+      count: 1
+      action: blocklist
+    complaint:
+      count: 1
+      action: blocklist
+    soft:
+      count: 3
+      action: none
+
+  # Every third-party bounce service is off, so no outside company can mark a
+  # subscriber undeliverable. Only the non-secret fields are named.
+  "bounce.ses_enabled": false
+  "bounce.sendgrid_enabled": false
+  "bounce.azure":
+    enabled: false
+    shared_secret_header: ""
+  "bounce.postmark":
+    enabled: false
+    username: ""
+  "bounce.forwardemail":
+    enabled: false
+  "bounce.lettermint":
+    enabled: false
+
+  # No postback messenger. Potentially destructive (a messenger added in the
+  # admin UI but not added here is removed on the next apply, password and all).
+  "messengers": []
+
+  # We don't block or favor any email domain. One bad blocklist entry would
+  # quietly refuse everyone at that provider.
+  "privacy.domain_blocklist": []
+  "privacy.domain_allowlist": []
+  # What the export button gives you. The two tracking tables stay listed even
+  # though tracking is off, so an export says plainly that we don't track.
+  "privacy.exportable":
+    - profile
+    - subscriptions
+    - campaign_views
+    - link_clicks
+
+  # OIDC off, so no outside identity provider decides who reaches the admin UI.
+  "security.oidc":
+    enabled: false
+    auto_create_users: false
+    provider_url: ""
+    provider_name: ""
+    client_id: ""
+  # No redirect targets after a form post, so nobody can use us as an open
+  # redirect.
+  "security.trusted_urls": []
+  # Uploads stay on our own disk rather than an object store at a third party.
+  "upload.provider": filesystem
+  # No custom JavaScript on the page a subscriber types an email into.
+  # Narrower than the styling and admin equivalents on purpose.
+  "appearance.public.custom_js": ""
+
+  # One SMTP block, the loopback relay. Fields not named here are left as the
+  # box has them. There is no credential.
+  "smtp":
+    - enabled: true
+      host: "{{ listmonk_smtp_host }}"
+      port: "{{ listmonk_smtp_port | int }}"
+      auth_protocol: none
+      username: ""
+      tls_type: none
+
+# The captcha needs JavaScript.
+listmonk_captcha_altcha_enabled: true

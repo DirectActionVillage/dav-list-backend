@@ -1,0 +1,50 @@
+<!--
+The files in this repo are GENERATED. The source of truth is a private
+repository (an export tool wrote this copy). There is no need to edit this
+repo (the next export would overwrite it). To suggest changes, open an
+issue or a pull request, and a maintainer will review and apply the changes
+to the private source manually (and then re-export). See CONTRIBUTING.md
+for more details.
+-->
+
+{{ define "optin" }}
+{{ template "header" .}}
+<section>
+    <h2>{{ L.T "public.confirmSubTitle" }}</h2>
+    <p>
+        {{ L.T "public.confirmSubInfo" }}
+    </p>
+
+    <form method="post" class="optin-form">
+        <ul>
+            {{ range $i, $l := .Data.Lists }}
+                <input type="hidden" name="l" value="{{ $l.UUID }}" />
+                {{ if eq $l.Type "public" }}
+                    <li>{{ $l.Name }}</li>
+                {{ else }}
+                    <li>{{ L.Ts "public.subPrivateList" }}</li>
+                {{ end }}
+            {{ end }}
+        </ul>
+        <p>
+            <input type="hidden" name="confirm" value="true" />
+            <button type="submit" class="button" id="btn-unsub">
+                {{ L.Ts "public.confirmSub" }}
+            </button>
+        </p>
+    </form>
+
+    <p class="description">
+        If you didn't ask for this, you can ignore this page. We only add an email
+        once somebody confirms it here.
+    </p>
+    <p class="description">
+        You can read
+        <a href="https://directactionvillage.org/data_policy_081926.html">what happens to what you type here</a>,
+        and the code that handles it on
+        <a href="https://github.com/DirectActionVillage">our GitHub</a>.
+    </p>
+</section>
+
+{{ template "footer" .}}
+{{ end }}
