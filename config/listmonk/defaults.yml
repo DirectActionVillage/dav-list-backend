@@ -39,7 +39,7 @@ listmonk_static_src_sha256: "2cb6dc629280df366d3bf6e74384209b9caf0626bdb125f70a5
 
 # A sentence from our own signup page. The health check looks for it on the
 # served page, so an upgrade that drops our copy fails the apply.
-listmonk_static_signup_assert_string: "It does not have to be your legal name"
+listmonk_static_signup_assert_string: "It doesn't have to be your legal name"
 
 # --- service user + paths ----------------------------------------------------
 listmonk_user: listmonk
