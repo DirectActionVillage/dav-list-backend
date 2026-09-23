@@ -16,7 +16,16 @@
 
 {{ listmonk_exposure_site }} {
 	encode zstd gzip
-	header Strict-Transport-Security "max-age={{ listmonk_exposure_hsts_max_age }}"
+	# Security headers. includeSubDomains costs nothing, because this host does
+	# not carry a subdomain. frame-ancestors none stops the subscription pages
+	# from loading inside another site's frame, and X-Frame-Options covers the
+	# older browsers. We do not set a wider CSP here, since the engine renders
+	# its own inline script and style.
+	header Strict-Transport-Security "max-age={{ listmonk_exposure_hsts_max_age }}; includeSubDomains"
+	header X-Frame-Options "DENY"
+	header Content-Security-Policy "frame-ancestors 'none'"
+	header X-Content-Type-Options "nosniff"
+	header Referrer-Policy "strict-origin-when-cross-origin"
 
 	# /admin* and /api* return 404, except the captcha challenge. This runs
 	# first, so we exclude the captcha path here too.
