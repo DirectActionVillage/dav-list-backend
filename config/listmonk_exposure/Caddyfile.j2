@@ -1,8 +1,8 @@
 # The files in this repo are GENERATED. The source of truth is a private
 # repository (an export tool wrote this copy). There is no need to edit this
 # repo (the next export would overwrite it). To suggest changes, open an
-# issue or a pull request, and a maintainer will review and apply the changes
-# to the private source manually (and then re-export). See CONTRIBUTING.md
+# issue or a pull request. A maintainer will review it, apply the changes
+# to the private source manually, and then re-export. See CONTRIBUTING.md
 # for more details.
 
 {# Managed by Ansible, so edit the role template instead. We publish this
@@ -10,14 +10,14 @@
    path list. #}
 {
 	# Caddy gets a Let's Encrypt certificate on its own. We don't set an ACME
-	# email (so this box carries less about us). The admin API stays on
+	# email (so this box holds less about us). The admin API stays on
 	# localhost:2019 (`caddy reload` needs it).
 }
 
 {{ listmonk_exposure_site }} {
 	encode zstd gzip
-	# Security headers. includeSubDomains costs nothing, because this host does
-	# not carry a subdomain. frame-ancestors none stops the subscription pages
+	# Security headers. includeSubDomains is free, because this host does
+	# not have a subdomain. frame-ancestors none stops the subscription pages
 	# from loading inside another site's frame, and X-Frame-Options covers the
 	# older browsers. We do not set a wider CSP here, since the engine renders
 	# its own inline script and style.
@@ -52,6 +52,18 @@
 	@public path {{ exposure_public | join(' ') }}
 	handle @public {
 		reverse_proxy http://{{ listmonk_exposure_upstream_ip }}:{{ listmonk_exposure_upstream_port }}
+	}
+
+	# security.txt (RFC 9116). This box answers it, so the request never
+	# reaches the engine and stays off the public path list. The body lines
+	# start at column 0 because Caddy keeps any indent inside the backticks.
+	handle /.well-known/security.txt {
+		header Content-Type "text/plain; charset=utf-8"
+		respond `Contact: mailto:{{ listmonk_exposure_security_contact }}
+Expires: {{ listmonk_exposure_security_txt_expires }}
+Preferred-Languages: en
+Canonical: https://{{ listmonk_exposure_site }}/.well-known/security.txt
+` 200
 	}
 
 	# Everything else returns 404 (including / and /webhooks/*).

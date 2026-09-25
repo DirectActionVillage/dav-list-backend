@@ -1,8 +1,8 @@
 > The files in this repo are GENERATED. The source of truth is a private
 > repository (an export tool wrote this copy). There is no need to edit this
 > repo (the next export would overwrite it). To suggest changes, open an
-> issue or a pull request, and a maintainer will review and apply the changes
-> to the private source manually (and then re-export). See CONTRIBUTING.md
+> issue or a pull request. A maintainer will review it, apply the changes
+> to the private source manually, and then re-export. See CONTRIBUTING.md
 > for more details.
 
 # Direct Action Village mailing list configuration
@@ -25,7 +25,7 @@ The allowlist is `listmonk_exposure_public_paths` in `config/listmonk_exposure/d
 
 `/grants/apply` is a grant application form (not part of the mailing list). listmonk can only store an email address, a name, and your lists, so a separate program handles the form. It's switched off right now. Both switches are `false`: `listmonk_grant_form_enabled` (engine) and `listmonk_exposure_grant_form_enabled` (edge server). Until we flip them, the path will return `404`. You can see the exact URLs in `listmonk_grant_form_paths`. The handler only listens on `127.0.0.1`, so anything outside the engine's machine can't reach it (`listmonk_grant_form_upstream`).
 
-The edge server passes each application through without storing it. It also keeps no access log, so it doesn't record your IP address either. We haven't published the handler's code yet (`OMISSIONS.md` lists it). The engine checks the same allowlist again in `config/listmonk/Caddyfile.j2` (so someone who took over the edge server still couldn't reach anything else).
+The edge server passes each application through without storing it. It also doesn't keep an access log, so it doesn't record your IP address either. We haven't published the handler's code yet (`OMISSIONS.md` lists it). The engine checks the same allowlist again in `config/listmonk/Caddyfile.j2` (so someone who took over the edge server still couldn't reach anything else).
 
 ## Everything else
 

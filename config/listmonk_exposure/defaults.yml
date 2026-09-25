@@ -1,8 +1,8 @@
 # The files in this repo are GENERATED. The source of truth is a private
 # repository (an export tool wrote this copy). There is no need to edit this
 # repo (the next export would overwrite it). To suggest changes, open an
-# issue or a pull request, and a maintainer will review and apply the changes
-# to the private source manually (and then re-export). See CONTRIBUTING.md
+# issue or a pull request. A maintainer will review it, apply the changes
+# to the private source manually, and then re-export. See CONTRIBUTING.md
 # for more details.
 
 ---
@@ -31,6 +31,16 @@ listmonk_exposure_mail_pop3_port: 110
 # The WireGuard port. The engine dials in here (this box doesn't dial out to
 # the engine).
 listmonk_exposure_wg_port: 51820
+
+# The firewall caps new HTTPS connections from each source address, per
+# minute. It drops anything over the cap and doesn't log it. It holds each
+# address in kernel memory for a minute to count it, and never writes one to
+# disk. A browser reuses its connections across a page, so a normal visit
+# stays far below this. Many people behind one shared address count as one
+# source.
+listmonk_exposure_https_newconn_per_minute: 30
+# How many new connections one source may open at once before the cap applies.
+listmonk_exposure_https_newconn_burst: 60
 
 # --- WireGuard link, edge end -------------------------------------------------
 # This end only listens. It can only reach the engine's link address, even if
@@ -78,6 +88,12 @@ listmonk_exposure_archive_paths:
   - /archive
   - /archive/*
   - /archive.xml
+
+# The security.txt this box serves itself. The contact address is already
+# public on our website. Move the expiry forward before it passes, and keep it
+# within a year of the edit.
+listmonk_exposure_security_contact: "directactionvillage@proton.me"
+listmonk_exposure_security_txt_expires: "2027-09-23T00:00:00.000Z"
 
 # --- grant application form: one more path through the edge -------------------
 # This box sees grant applications in the clear as they pass through. It

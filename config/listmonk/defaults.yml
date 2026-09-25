@@ -1,8 +1,8 @@
 # The files in this repo are GENERATED. The source of truth is a private
 # repository (an export tool wrote this copy). There is no need to edit this
 # repo (the next export would overwrite it). To suggest changes, open an
-# issue or a pull request, and a maintainer will review and apply the changes
-# to the private source manually (and then re-export). See CONTRIBUTING.md
+# issue or a pull request. A maintainer will review it, apply the changes
+# to the private source manually, and then re-export. See CONTRIBUTING.md
 # for more details.
 
 ---
@@ -91,7 +91,7 @@ listmonk_tunnel_mtu: 1280
 
 # --- exposure stage: loopback bind + the local allowlist proxy ----------------
 # On. listmonk binds loopback and the local Caddy owns every other listener.
-# Set false to fall back to a wide bind with no Caddy.
+# Set false to fall back to a wide bind without Caddy.
 listmonk_local_proxy_enabled: true
 
 # The public site. Its A record points at the edge host and never at the private
