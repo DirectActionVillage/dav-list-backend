@@ -47,12 +47,6 @@ We leave out the SSH server settings, the port it uses, and who has admin access
 
 That's how we log in (it doesn't touch your data). Admin access is key-only, with password logins turned off.
 
-## The grant application handler
-
-We leave out the code for the program that serves and stores grant applications, and the form pages. We do publish its path, its switch, and the loopback address it listens on (in the config files here).
-
-We plan to publish it, but haven't decided whether to add a second program to this repo yet. The form is switched off in these files, so it can't take applications right now.
-
 ## Internal observability
 
 We leave out our metrics exporter, what it collects from, how alerts get sent, and the inventory lookups behind them.

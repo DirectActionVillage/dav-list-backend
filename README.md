@@ -35,6 +35,7 @@ The edge server passes each application through and doesn't store it. It doesn't
 | `config/listmonk_exposure/Caddyfile.j2` | the public front door |
 | `pages/` | the pages a subscriber actually reads |
 | `mail/` | the confirmation emails a subscriber actually gets |
+| `grant-form/` | the grant application form, its thank-you page, and the program that encrypts and stores each application |
 | `OMISSIONS.md` | what we leave out of this repo, by category, and why |
 | `MANIFEST.txt` | a sha256 for every file here, in `sha256sum -c` format |
 

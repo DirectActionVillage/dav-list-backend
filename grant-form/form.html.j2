@@ -1,0 +1,125 @@
+<!--
+We generate the files in this repo from a private repo. Edits here would
+be overwritten by the next export. To suggest a change, open an issue or
+a pull request. We'll make it in the private repo and re-export. See
+CONTRIBUTING.md for details.
+-->
+
+<!doctype html>
+<!-- Managed by Ansible. Do not edit by hand;
+     change the role template.
+
+     One HTTP response, start to finish. There is no script tag, no stylesheet
+     link, no image and no font: the page renders the same with JavaScript off,
+     with a text browser, and behind a blocker that eats third-party requests.
+     The doubled-at markers below are filled in by the handler on every
+     request. Its self-test refuses a page whose marker set does not match
+     exactly what it fills, so a marker cannot reach a reader as literal text
+     and a field cannot lose its value silently. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>{{ listmonk_grant_form_title }}</title>
+<style>
+body { margin: 0 auto; padding: 1rem; max-width: 42rem; line-height: 1.5;
+       font-family: 'book antiqua', palatino, serif; font-size: 18px;
+       color: #222222; background: #ffffff; }
+h1 { font-size: 1.6rem; }
+h2 { font-size: 1.2rem; margin-top: 2rem; }
+label { display: block; font-weight: bold; color: #222222; margin-top: 1.2rem; }
+.description { display: block; color: #666666; margin: 0.2rem 0; }
+input[type=text], textarea { display: block; width: 100%; box-sizing: border-box;
+       padding: 0.5rem; font: inherit; margin-top: 0.3rem; }
+.notice { border: 2px solid currentColor; padding: 0.5rem 1rem; margin: 1rem 0; }
+.warn { border-left: 4px solid currentColor; padding-left: 0.8rem; }
+button { font: inherit; padding: 0.6rem 1.2rem; margin-top: 1.5rem; }
+.optional { font-weight: normal; color: #666666; }
+.offscreen { position: absolute; left: -9999px; width: 1px; height: 1px;
+       overflow: hidden; }
+</style>
+</head>
+<body>
+<main>
+{% include 'grant-form-logo.html.j2' %}
+<h1>{{ listmonk_grant_form_title }}</h1>
+
+<p>{{ listmonk_grant_form_intro }}</p>
+
+@@NOTICE@@
+
+<h2>Before you start</h2>
+<p>Projects should be based in the {{ listmonk_grant_form_area }} (we can still look at one farther away). They have to be legal, and they should be doable within {{ listmonk_grant_form_completion_window }} of getting the money (a longer or ongoing project can still work).</p>
+
+<p>{{ listmonk_grant_form_cycle_notice }}</p>
+
+<p>Grants go up to {{ listmonk_grant_form_max_award }}. There isn't a minimum, and small asks are welcome!</p>
+
+<h2>What happens next</h2>
+<p>The committee reads every application. If yours makes the shortlist, we'll get in touch and invite you to pitch it to the community at a meeting.</p>
+
+<h2>Filling this in</h2>
+<p>Only the questions about your project are required. Everything about you is optional.</p>
+<p>This form doesn't save drafts, so you might want to write the long answers somewhere else first.</p>
+
+<form method="post" action="">
+<input type="hidden" name="grant_form_token" value="@@TOKEN@@">
+
+<p class="offscreen">
+<label for="{{ listmonk_grant_form_honeypot_field }}">Leave this field empty.</label>
+<input id="{{ listmonk_grant_form_honeypot_field }}" name="{{ listmonk_grant_form_honeypot_field }}" type="text" value="" autocomplete="off" tabindex="-1">
+</p>
+
+<h2>About you</h2>
+<p class="warn">Everything in this section is optional. You can apply without giving any contact details at all (we just won't be able to tell you if you win).</p>
+
+<label for="name">What should we call you? <span class="optional">(optional)</span></label>
+<span id="name-help" class="description">It doesn't have to be your legal name.</span>
+<input id="name" name="name" type="text" value="@@V_NAME@@" aria-describedby="name-help" autocomplete="off">
+
+<label for="email">Email address <span class="optional">(optional)</span></label>
+<span id="email-help" class="description">Any email works. If you can, use one without your legal name or birthday in it, from a privacy-respecting provider like Tuta, RiseUp, or Proton. If firstname.lastname@gmail.com is all you have, that's fine too. We'll do our best to protect the data you give us.</span>
+<input id="email" name="email" type="text" inputmode="email" value="@@V_EMAIL@@" aria-describedby="email-help" autocomplete="off">
+
+<label for="phone">Phone number <span class="optional">(optional)</span></label>
+<input id="phone" name="phone" type="text" inputmode="tel" value="@@V_PHONE@@" autocomplete="off">
+
+<label for="signal">Signal username <span class="optional">(optional)</span></label>
+<span id="signal-help" class="description">That's your username, not your display name. You can find it in Signal under Settings, then Profile.</span>
+<input id="signal" name="signal" type="text" value="@@V_SIGNAL@@" aria-describedby="signal-help" autocomplete="off">
+
+<h2>About your project</h2>
+
+<label for="project">What's your project?</label>
+<span id="project-help" class="description">A short description is fine. Required.</span>
+<textarea id="project" name="project" rows="6" required aria-describedby="project-help">@@V_PROJECT@@</textarea>
+
+<label for="why">Why do you care about it, and how will it help the community?</label>
+<span id="why-help" class="description">Required.</span>
+<textarea id="why" name="why" rows="6" required aria-describedby="why-help">@@V_WHY@@</textarea>
+
+<label for="budget">Roughly what will it cost, and what's the money for?</label>
+<span id="budget-help" class="description">Grants go up to {{ listmonk_grant_form_max_award }}, and there isn't a minimum. We don't need a line-by-line budget. If you already have other money or materials lined up, tell us about those too. Required.</span>
+<textarea id="budget" name="budget" rows="6" required aria-describedby="budget-help">@@V_BUDGET@@</textarea>
+
+<label for="resources">Anything else you need to finish it? <span class="optional">(optional)</span></label>
+<span id="resources-help" class="description">The Commons might be able to help, or point you to someone who can.</span>
+<textarea id="resources" name="resources" rows="4" aria-describedby="resources-help">@@V_RESOURCES@@</textarea>
+
+<h2>One more thing</h2>
+<p>
+<input id="subscribe" name="subscribe" type="checkbox" value="yes" @@SUBSCRIBE_CHECKED@@>
+<label for="subscribe" style="display:inline; font-weight:400">Add my email to the {{ listmonk_grant_form_org_name }} mailing list too.</label>
+</p>
+<span class="description">We won't add you unless you tick this box.</span>
+
+<button type="submit">Send my application</button>
+</form>
+
+<h2>What happens to what you type here</h2>
+<p>Our <a target="_blank" rel="noopener noreferrer" href="{{ listmonk_grant_form_data_notice_url }}">data policy</a> covers that. The code for our mailing list and for this form is on <a target="_blank" rel="noopener noreferrer" href="{{ listmonk_grant_form_source_url }}">our GitHub</a>.</p>
+</main>
+</body>
+</html>

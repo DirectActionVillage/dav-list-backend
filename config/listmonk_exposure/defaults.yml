@@ -44,21 +44,23 @@ listmonk_exposure_wg_port: 51820
 #
 # Launch-week values. The edge only speaks HTTP/1.1. A visit to the form opens 4
 # or 5 connections for the page and its files, and the post adds one more. A
-# crowd of 200 people behind one address, arriving over a minute, needs
-# about 1200 new connections. It holds up to about 540 of them at once, because
-# each idles for up to 30 seconds. We tested this ruleset in a network
-# namespace, and 150 and 200 people all completed. A rate of 60 a minute with a
-# burst of 400 and 300 held left 8 of 150 unfinished. One source that floods
-# still only gets this rate once the burst is spent, which is 10 new connections
-# a second. We'll lower the burst after launch week.
+# crowd of 200 people behind one address, arriving over a minute, needs about
+# 1200 new connections, and this rate allows them. The held cap below binds
+# first, so such a crowd takes turns for the held connections. One source that
+# floods still only gets this rate once the burst is spent, which is 10 new
+# connections a second. We'll lower the burst after launch week.
 listmonk_exposure_https_newconn_per_minute: 600
 # How many new connections one source may open at once before the cap applies.
 listmonk_exposure_https_newconn_burst: 1200
-# How many connections one source may hold open to 443 at once. At the cap, a
-# source that stalls every request holds 600 stalled requests. Those cost about
-# 50 MB of Caddy's memory with small headers, and the header cap keeps it that
-# way. One source at the cap uses 0.9 percent of the tracking table.
-listmonk_exposure_https_conn_max: 600
+# How many connections one source may hold open to 443 at once. A visit holds 5
+# or 6 at the same moment, so one shared address, such as a coffee shop or a
+# carrier NAT, serves about 10 visitors at once. A visitor past that waits. The
+# browser retries, and a held connection frees up once it sits idle for the
+# idle timeout below. In the rig, 10 browsers behind one address loaded the page
+# at once. Of 20, the second 10 waited 36 seconds. At the cap, a source that
+# stalls every request holds 60 stalled requests, about 5 MB of Caddy's memory
+# with small headers.
+listmonk_exposure_https_conn_max: 60
 # One cap on all connections held to 443, across every source. A held
 # connection costs Caddy about 75 to 115 KB, and a flood adds socket buffers.
 # We tried it on a scratch rig with the edge's own Caddy binary, the rendered
@@ -67,7 +69,7 @@ listmonk_exposure_https_conn_max: 600
 # 285 MB, and 6000 stalled requests killed it at the 400 MB limit. With this
 # cap, those two waves peaked at 111 and 179 MB, and nothing died. Past the cap,
 # new connections drop and Caddy stays up. The heavy pool below keeps a few big
-# sources from filling it. We keep 600 per source because a crowd needs it.
+# sources from filling it.
 listmonk_exposure_https_global_max: 1500
 # The same cap for port 80, which only redirects and answers certificate
 # challenges.
@@ -76,24 +78,26 @@ listmonk_exposure_http_global_max: 500
 # source's first connections up to the light count never touch it, so a browser
 # (4 to 6 connections) or a small office always gets in. Each connection past
 # that also counts in one pool that all heavy sources share, and drops when the
-# pool is full. Heavy sources then hold at most the pool plus the light count
-# each, so the last 500 of the 1500 only ever hold light connections. A lone
-# crowd of 200 behind one address still gets its 540. Filling the global cap
-# now takes 10 or more sources that each hold the light count, not 3. In the
-# rig, three sources at 600 held 1150 and a new visitor got every answer. Nine
-# sources left it every answer, and eleven refused it. A flood from that many
-# sources still meets the global cap, which is unchanged. The pool only drops,
-# so Caddy's worst case stays the global cap's.
-listmonk_exposure_https_light_max: 50
-listmonk_exposure_https_pool_max: 1000
+# pool is full. Ten sources at the per-source cap fill the pool (10 x 40). Then
+# a crowd behind one address gets only its light count, and the alert pages on
+# the pool's drops. Heavy sources hold at most the pool plus the light count
+# each. Filling the global cap of 1500 takes 55 sources (55 x 20 light, plus
+# the pool of 400). Below that, a new visitor always gets in. In the rig, 3, 10,
+# and 54 sources at the cap left a new visitor every answer, and 56 refused it.
+# A flood from more sources meets the global cap. The pool only drops, so
+# Caddy's worst case stays the global cap's.
+listmonk_exposure_https_light_max: 20
+listmonk_exposure_https_pool_max: 400
 # The same for port 80. A browser that follows an http link holds one
-# connection, so 20 is many people. 200 of the 500 stay free for small sources.
-listmonk_exposure_http_light_max: 20
-listmonk_exposure_http_pool_max: 300
-# The on-call block lists. Ten or more sources can still fill the global cap
-# and refuse every visitor. An operator drops those sources with a timed entry in
-# `dav_block_v4` or `dav_block_v6`. An entry added without its own timeout lasts
-# this long, then expires. Reloading the ruleset empties both sets.
+# connection, so 5 covers a few people. Filling the global cap of 500 takes 80
+# sources (80 x 5 light, plus the pool of 100).
+listmonk_exposure_http_light_max: 5
+listmonk_exposure_http_pool_max: 100
+# The on-call block lists. Enough sources (the counts are above) can still fill
+# the global cap and refuse every visitor. An operator drops those sources with
+# a timed entry in `dav_block_v4` or `dav_block_v6`. An entry added without its
+# own timeout lasts this long, then expires. Reloading the ruleset empties both
+# sets.
 listmonk_exposure_dav_block_timeout: 1h
 # The most entries one set holds. Far above what an incident needs.
 listmonk_exposure_dav_block_size: 4096
@@ -101,17 +105,18 @@ listmonk_exposure_dav_block_size: 4096
 # ruleset. A reload empties the sets, and running `nft -f` on the saved file
 # restores them.
 listmonk_exposure_block_save_dir: /root
-# The script that reads the two global cap counters. It logs one line every
-# interval, and an alert fires when the count rises. Keep the interval short,
-# because it's the first step in how fast the alert fires.
+# The script that reads the drop counters of the global caps and the heavy
+# pools. It logs one line every interval, and an alert fires when a count
+# rises. Keep the interval short, because it's the first step in how fast the
+# alert fires.
 listmonk_exposure_caps_script: /usr/local/sbin/dav-edge-caps.sh
 listmonk_exposure_caps_interval: 30s
 # The same per-source cap for port 80, which only redirects and answers
 # certificate challenges. A browser that follows an http link holds one
-# connection until the idle timeout closes it. One source holding both caps
-# uses 800 entries, which is 1.2 percent of the table. It takes 82 sources to
-# fill it.
-listmonk_exposure_http_conn_max: 200
+# connection until the idle timeout closes it. One source at both caps holds 80
+# tracking entries. The two global caps hold 2000 at most across all sources,
+# about 3 percent of the tracking table.
+listmonk_exposure_http_conn_max: 20
 # How long the proxy waits for a request's headers, and how long it keeps an
 # idle connection. Without these, the proxy never closes a silent connection, so
 # a source could park sockets up to its cap for as long as it liked. Both ports

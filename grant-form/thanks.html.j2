@@ -1,0 +1,45 @@
+<!--
+We generate the files in this repo from a private repo. Edits here would
+be overwritten by the next export. To suggest a change, open an issue or
+a pull request. We'll make it in the private repo and re-export. See
+CONTRIBUTING.md for details.
+-->
+
+<!doctype html>
+<!-- Managed by Ansible. Do not edit by hand;
+     change the role template.
+
+     Served on the GET that follows a successful submission, so a browser
+     refresh cannot send the application twice. It carries no placeholder: the
+     handler serves these bytes unchanged, and its self-test asserts that. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>Thank you</title>
+<style>
+body { margin: 0 auto; padding: 1rem; max-width: 42rem; line-height: 1.5;
+       font-family: 'book antiqua', palatino, serif; font-size: 18px;
+       color: #222222; background: #ffffff; }
+h1 { font-size: 1.6rem; }
+</style>
+</head>
+<body>
+<main>
+{% include 'grant-form-logo.html.j2' %}
+<h1>Thanks!</h1>
+
+<p>We got your application. It was locked (encrypted) as soon as it arrived, and only the volunteers who handle applications can open it. They pass it on to the committee.</p>
+
+<p>{{ listmonk_grant_form_cycle_notice }}</p>
+
+<p>The committee reads every application. If yours makes the shortlist, we'll get in touch and invite you to pitch it to the community at a meeting.</p>
+
+<p>If you left the contact fields blank, we can't reach you, so keep an eye out for the decision wherever {{ listmonk_grant_form_org_name }} announces it.</p>
+
+<p>Our <a target="_blank" rel="noopener noreferrer" href="{{ listmonk_grant_form_data_notice_url }}">data policy</a> says how long we keep your application and how to ask us to delete it sooner. The code for our mailing list and for this form is on <a target="_blank" rel="noopener noreferrer" href="{{ listmonk_grant_form_source_url }}">our GitHub</a>.</p>
+</main>
+</body>
+</html>
