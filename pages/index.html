@@ -1,0 +1,72 @@
+<!--
+We generate the files in this repo from a private repo. Edits here would
+be overwritten by the next export. To suggest a change, open an issue or
+a pull request. We'll make it in the private repo and re-export. See
+CONTRIBUTING.md for details.
+-->
+
+{{ define "header" }}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<title>{{ .Data.Title }} - {{ .SiteName }}</title>
+	<meta name="description" content="{{ .Data.Description }}" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+
+	{{ if .EnablePublicArchive }}
+		<link rel="alternate" type="application/rss+xml" title="{{ L.T "public.archiveTitle" }} - {{ .SiteName }}"
+			href="{{ .RootURL }}/archive.xml" />
+	{{ end }}
+
+	<link href="/public/static/style.css?v={{ .AssetVersion }}" rel="stylesheet" type="text/css" />
+	<style>
+		/* Every page a subscriber reads uses one font and size. Form controls
+		   don't inherit the font by themselves, so they're named here. */
+		body, input, button, select, textarea, .button,
+		.lists .description, footer.container {
+			font-family: 'book antiqua', palatino, serif;
+			font-size: 18px;
+			line-height: 1.5;
+		}
+		.header .logo {
+			text-align: center;
+		}
+		/* The stock grays read under 4.5:1 on their backgrounds. */
+		.lists .description, footer.container, footer a {
+			color: #666666;
+		}
+	</style>
+	<link href="/public/custom.css?v={{ .AssetVersion }}" rel="stylesheet" type="text/css">
+	<script src="/public/custom.js?v={{ .AssetVersion }}" async defer></script>
+
+	{{ if ne .FaviconURL "" }}
+		<link rel="icon" href="{{ .FaviconURL }}" type="image/x-icon" />
+	{{ else }}
+		<link rel="icon" href="/public/static/favicon.png?v={{ .AssetVersion }}" type="image/png" />
+	{{ end }}
+</head>
+<body>
+    <div class="container wrap">
+		<header class="header">
+			<div class="logo">
+				<a target="_blank" rel="noopener noreferrer" href="{{ if .EnablePublicSubPage }}{{ .RootURL}}/subscription/form{{ end }}">
+				{{ if ne .LogoURL "" }}
+					<img src="{{ .LogoURL }}" alt="The Direct Action Village logo, an illustration of a covered stone well." />
+				{{ else }}
+					<img src="/public/static/logo.svg?v={{ .AssetVersion }}" alt="{{ .Data.Title }}" />
+				{{ end }}
+				</a>
+			</div>
+		</header>
+{{ end }}
+
+{{ define "footer" }}
+	</div>
+
+	<footer class="container">
+		{{ L.T "public.poweredBy" }} <a target="_blank" rel="noopener noreferrer" href="https://listmonk.app">listmonk</a>
+	</footer>
+</body>
+</html>
+{{ end }}

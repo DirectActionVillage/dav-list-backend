@@ -1,0 +1,27 @@
+<!--
+We generate the files in this repo from a private repo. Edits here would
+be overwritten by the next export. To suggest a change, open an issue or
+a pull request. We'll make it in the private repo and re-export. See
+CONTRIBUTING.md for details.
+-->
+
+{{ define "subscriber-optin" }}
+{{/* optin-renders-no-subscriber-text */}}
+{{ template "header" . }}
+<p><span style="font-size: 18px; font-family: 'book antiqua', palatino, serif;">Hey friend!</span></p>
+<p style="line-height: 1.5;"><span style="font-size: 18px; font-family: 'book antiqua', palatino, serif;">
+Thanks for wanting to be a part of our Maine Capital Area community.
+To confirm your opt-in to the Direct Action Village Mailing List, click the link below.
+We use a double-confirmation system: signing up was step 1, and clicking the button below is step 2.
+Our group meets at 5:00pm on the first Wednesday of every month at <a target="_blank" rel="noopener noreferrer" href="https://www.plumbakery.me/">Plum Bakery</a> on 347 Water Street in Gardiner.
+Feel free to drop by if you have any questions, or email us at <a target="_blank" rel="noopener noreferrer" href="mailto:directactionvillage@proton.me">directactionvillage@proton.me</a>!
+You can also check out our website at <a target="_blank" rel="noopener noreferrer" href="https://directactionvillage.org/">directactionvillage.org</a>.
+</span></p>
+<p style="line-height: 1.5; text-align: center;"><span style="font-size: 18px; font-family: 'book antiqua', palatino, serif;"><a target="_blank" rel="noopener noreferrer" class="button" href="{{ .OptinURL }}"><strong>Confirm subscription</strong></a></span></p>
+<p style="line-height: 1.5;"><span style="font-size: 18px; font-family: 'book antiqua', palatino, serif;">We keep us safe,</span></p>
+<p style="line-height: 1.5;"><span style="font-size: 18px; font-family: 'book antiqua', palatino, serif;">Direct Action Village</span></p>
+<p style="line-height: 1.5;"><a target="_blank" rel="noopener noreferrer" href="https://directactionvillage.org/"><img src="https://news.directactionvillage.org/uploads/banner.png" alt="The Direct Action Village logo, which is an illustration of a covered stone well with a bucket on its rim." style="display: block; margin-left: auto; margin-right: auto;" width="600" height="243" /></a></p>
+<p><a target="_blank" rel="noopener noreferrer" href="{{ .UnsubURL }}?manage=true">{{ L.T "email.unsub" }}</a></p>
+
+{{ template "footer" }}
+{{ end }}

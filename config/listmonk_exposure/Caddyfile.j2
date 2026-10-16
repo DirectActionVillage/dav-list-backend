@@ -1,0 +1,170 @@
+# We generate the files in this repo from a private repo. Edits here would
+# be overwritten by the next export. To suggest a change, open an issue or
+# a pull request. We'll make it in the private repo and re-export. See
+# CONTRIBUTING.md for details.
+
+{# We publish this file, so it can't hold hosts or addresses. The engine has
+   the same path list. #}
+{
+	# Caddy gets a Let's Encrypt certificate on its own. We don't set an ACME
+	# email (so this box holds less about us). The admin API stays on
+	# localhost:2019 (`caddy reload` needs it).
+
+	# HTTP/1.1 only. One HTTP/2 connection holds up to 250 streams, and
+	# each stalled stream waits in memory for one of the few sockets to the
+	# engine. A single source could queue tens of thousands of them and take
+	# the box down. On HTTP/1.1 every request needs its own connection, and
+	# the firewall caps those per source. That means more connections per
+	# visit, and the new-connection cap allows for it. The firewall also drops
+	# UDP 443, so there's no HTTP/3 to advertise.
+	servers {
+		protocols h1
+
+		# Refuse a request whose headers are larger than a real browser sends
+		# (a signup is under 1 KB of headers). Caddy keeps a stalled request's
+		# headers in memory, and the default limit of 1 MB made one stalled
+		# request cost about 4 MB.
+		max_header_size {{ listmonk_exposure_max_header_size }}
+
+		# Close a connection that never sends a request, one that sits idle,
+		# one whose promised body never arrives, and one whose reader stops
+		# reading. Without these, the proxy keeps each of them forever. The
+		# firewall caps how many a source holds, and these end each one.
+		timeouts {
+			read_header {{ listmonk_exposure_read_header_timeout }}
+			read_body {{ listmonk_exposure_read_body_timeout }}
+			write {{ listmonk_exposure_write_timeout }}
+			idle {{ listmonk_exposure_idle_timeout }}
+		}
+	}
+
+	# Port 80 redirects through the site block below, not through the redirect
+	# server Caddy adds on its own. That server ignores the timeouts above.
+	# Certificate challenges still reach it first.
+	auto_https disable_redirects
+
+	# The default logger would write an error entry for every failed proxy
+	# request. That entry holds the visitor's address, port, path, and
+	# browser string. The proxy handler's own error line logs the whole
+	# request too, with the same fields. We promise not to keep those, so
+	# the default logger drops both.
+	log default {
+		exclude http.log.error http.handlers.reverse_proxy
+	}
+}
+
+# Port 80 only redirects to HTTPS. Caddy answers certificate challenges before
+# this block sees the request.
+http:// {
+	redir https://{host}{uri} 308
+}
+
+{{ listmonk_exposure_site }} {
+	encode zstd gzip
+	# Security headers. includeSubDomains is safe to set, because this host
+	# doesn't have any subdomains. frame-ancestors none stops other sites from
+	# loading the subscription pages in a frame, and X-Frame-Options covers
+	# older browsers. We don't set a wider CSP here, because the engine renders
+	# its own inline script and style.
+	header Strict-Transport-Security "max-age={{ listmonk_exposure_hsts_max_age }}; includeSubDomains"
+	header X-Frame-Options "DENY"
+	header Content-Security-Policy "frame-ancestors 'none'"
+	header X-Content-Type-Options "nosniff"
+	header Referrer-Policy "strict-origin-when-cross-origin"
+
+	# A real signup post is under 2 KB. Cutting bodies off here keeps a large
+	# upload from crossing the tunnel.
+	request_body {
+		max_size {{ listmonk_exposure_max_body }}
+	}
+
+	# Every signup post closes its connection. A client then needs a new
+	# connection for each attempt. That makes the firewall's cap on new
+	# connections per source work as a cap on signups per source. A visitor only
+	# posts once, so they won't notice.
+	@signup {
+		method POST
+		path /subscription/form
+	}
+	header @signup Connection close
+
+	# /admin* and /api* return 404, except the captcha challenge. This runs
+	# first, so we exclude the captcha path here too.
+	@blocked {
+		path /admin* /api*
+		not path {{ listmonk_exposure_captcha_path }}
+	}
+	handle @blocked {
+		respond 404
+	}
+
+	# The public paths. We allow every method (one-click unsubscribe is a
+	# POST). The click and open tracking paths (/link/* and /campaign/*)
+	# aren't on the list. We don't set an access log, and the error log is off
+	# (see the global block), so we don't record your IP address here.
+{% if listmonk_exposure_grant_form_enabled %}
+	#
+	# The grant form paths go to the engine too (which sends them on to the
+	# grant handler). This box doesn't store them.
+{% endif %}
+{% set exposure_public = listmonk_exposure_public_paths
+   + (listmonk_exposure_archive_paths if listmonk_exposure_archive_public else [])
+   + (listmonk_exposure_grant_form_paths if listmonk_exposure_grant_form_enabled else []) %}
+	@public path {{ exposure_public | join(' ') }}
+	handle @public {
+		reverse_proxy http://{{ listmonk_exposure_upstream_ip }}:{{ listmonk_exposure_upstream_port }} {
+			# The engine's own proxy adds a Server header, so we strip it.
+			header_down -Server
+
+			# Cap the sockets to the engine. A stalled request holds one
+			# until a timeout above cuts it. Past this count a new request
+			# waits, so a flood of stalls slows signups but never reaches the
+			# engine's file limit.
+			transport http {
+				max_conns_per_host {{ listmonk_exposure_upstream_max_conns }}
+			}
+		}
+	}
+
+	# security.txt (RFC 9116). This box answers it, so the request never
+	# reaches the engine, and the path stays off the public list. The body
+	# lines start at column 0 because Caddy keeps any indent inside the
+	# backticks.
+	handle /.well-known/security.txt {
+		header Content-Type "text/plain; charset=utf-8"
+		respond `Contact: mailto:{{ listmonk_exposure_security_contact }}
+Expires: {{ listmonk_exposure_security_txt_expires }}
+Preferred-Languages: en
+Canonical: https://{{ listmonk_exposure_site }}/.well-known/security.txt
+` 200
+	}
+
+	# Everything else returns 404 (including / and /webhooks/*).
+	handle {
+		respond 404
+	}
+}
+
+# The mail name. This block exists so Caddy obtains and renews the
+# certificate that Postfix serves on port 25. It doesn't serve a page.
+{{ listmonk_exposure_mx_site }} {
+	respond 404
+}
+{% if listmonk_exposure_mta_sts_enabled %}
+
+# The MTA-STS policy (RFC 8461). A sending server fetches it over HTTPS and
+# caches it for max_age seconds.
+{{ listmonk_exposure_mta_sts_site }} {
+	handle /.well-known/mta-sts.txt {
+		header Content-Type "text/plain; charset=utf-8"
+		respond `version: STSv1
+mode: {{ listmonk_exposure_mta_sts_mode }}
+mx: {{ listmonk_exposure_mx_site }}
+max_age: {{ listmonk_exposure_mta_sts_max_age }}
+` 200
+	}
+	handle {
+		respond 404
+	}
+}
+{% endif %}

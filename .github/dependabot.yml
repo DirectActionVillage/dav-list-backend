@@ -1,0 +1,12 @@
+version: 2
+updates:
+  # Keep the SHA-pinned GitHub Actions current. Dependabot bumps the pin and
+  # updates the trailing version comment, so the workflow stays both pinned
+  # and up to date. This file lives only in this repo (the export skips
+  # .github/).
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci

@@ -1,0 +1,238 @@
+# We generate the files in this repo from a private repo. Edits here would
+# be overwritten by the next export. To suggest a change, open an issue or
+# a pull request. We'll make it in the private repo and re-export. See
+# CONTRIBUTING.md for details.
+
+---
+# The public half of the listmonk_exposure defaults. The rest of the edge host's
+# settings (addresses, keys, sshd, and firewall rules) stay private. We publish
+# this file.
+#
+# The edge host serves the public pages and handles the list mail. The engine
+# signs mail before it gets here, so this box doesn't need a DKIM key. It only
+# talks to the engine over WireGuard (the engine starts that connection).
+
+# --- self-hosted MTA ports ----------------------------------------------------
+# We set the mail ports here because they feed the edge host's firewall, which
+# drops anything we don't open.
+#
+# On. Set false and re-apply to close the ports. They have to match the mail
+# relay's ports.
+listmonk_exposure_mail_enabled: true
+# Open to the internet for bounces. Postfix only takes mail for our bounce
+# subdomain, and only relays for the engine.
+listmonk_exposure_mail_smtp_port: 25
+# Link only. The engine sends signed mail on 587 and reads bounces on 110.
+listmonk_exposure_mail_submission_port: 587
+listmonk_exposure_mail_pop3_port: 110
+
+# --- exposure firewall caps and the edge's limits -----------------------------
+# The firewall rules enforce the caps below, and the apply fails unless the
+# loaded rules match these values. The Caddy limits further down live in the
+# Caddyfile (Caddyfile.j2) and in Caddy's systemd limits. This file is where
+# each value is set.
+
+# The WireGuard port. The engine dials in here (this box doesn't dial out to
+# the engine).
+listmonk_exposure_wg_port: 51820
+
+# The firewall caps new HTTPS connections from each source address, per
+# minute. It drops anything over the cap and doesn't log it. To count, it holds
+# each address in kernel memory for a minute, and it never writes one to disk. A
+# browser reuses its connections across a page, so a normal visit stays far
+# below the cap. Many people behind one shared address count as one source.
+#
+# Launch-week values. The edge only speaks HTTP/1.1. A visit to the form opens 4
+# or 5 connections for the page and its files, and the post adds one more. A
+# crowd of 200 people behind one address, arriving over a minute, needs
+# about 1200 new connections. It holds up to about 540 of them at once, because
+# each idles for up to 30 seconds. We tested this ruleset in a network
+# namespace, and 150 and 200 people all completed. A rate of 60 a minute with a
+# burst of 400 and 300 held left 8 of 150 unfinished. One source that floods
+# still only gets this rate once the burst is spent, which is 10 new connections
+# a second. We'll lower the burst after launch week.
+listmonk_exposure_https_newconn_per_minute: 600
+# How many new connections one source may open at once before the cap applies.
+listmonk_exposure_https_newconn_burst: 1200
+# How many connections one source may hold open to 443 at once. At the cap, a
+# source that stalls every request holds 600 stalled requests. Those cost about
+# 50 MB of Caddy's memory with small headers, and the header cap keeps it that
+# way. One source at the cap uses 0.9 percent of the tracking table.
+listmonk_exposure_https_conn_max: 600
+# One cap on all connections held to 443, across every source. A held
+# connection costs Caddy about 75 to 115 KB, and a flood adds socket buffers.
+# We tried it on a scratch rig with the edge's own Caddy binary, the rendered
+# Caddyfile and ruleset, and the same memory limit. Ten sources each opened 600
+# connections. With only the header cap, 6000 idle connections took Caddy to
+# 285 MB, and 6000 stalled requests killed it at the 400 MB limit. With this
+# cap, those two waves peaked at 111 and 179 MB, and nothing died. Past the cap,
+# new connections drop and Caddy stays up. The heavy pool below keeps a few big
+# sources from filling it. We keep 600 per source because a crowd needs it.
+listmonk_exposure_https_global_max: 1500
+# The same cap for port 80, which only redirects and answers certificate
+# challenges.
+listmonk_exposure_http_global_max: 500
+# The heavy pool, which keeps a few big sources from filling the global cap. A
+# source's first connections up to the light count never touch it, so a browser
+# (4 to 6 connections) or a small office always gets in. Each connection past
+# that also counts in one pool that all heavy sources share, and drops when the
+# pool is full. Heavy sources then hold at most the pool plus the light count
+# each, so the last 500 of the 1500 only ever hold light connections. A lone
+# crowd of 200 behind one address still gets its 540. Filling the global cap
+# now takes 10 or more sources that each hold the light count, not 3. In the
+# rig, three sources at 600 held 1150 and a new visitor got every answer. Nine
+# sources left it every answer, and eleven refused it. A flood from that many
+# sources still meets the global cap, which is unchanged. The pool only drops,
+# so Caddy's worst case stays the global cap's.
+listmonk_exposure_https_light_max: 50
+listmonk_exposure_https_pool_max: 1000
+# The same for port 80. A browser that follows an http link holds one
+# connection, so 20 is many people. 200 of the 500 stay free for small sources.
+listmonk_exposure_http_light_max: 20
+listmonk_exposure_http_pool_max: 300
+# The on-call block lists. Ten or more sources can still fill the global cap
+# and refuse every visitor. An operator drops those sources with a timed entry in
+# `dav_block_v4` or `dav_block_v6`. An entry added without its own timeout lasts
+# this long, then expires. Reloading the ruleset empties both sets.
+listmonk_exposure_dav_block_timeout: 1h
+# The most entries one set holds. Far above what an incident needs.
+listmonk_exposure_dav_block_size: 4096
+# Where an apply saves a block set that has entries in it, before it reloads the
+# ruleset. A reload empties the sets, and running `nft -f` on the saved file
+# restores them.
+listmonk_exposure_block_save_dir: /root
+# The script that reads the two global cap counters. It logs one line every
+# interval, and an alert fires when the count rises. Keep the interval short,
+# because it's the first step in how fast the alert fires.
+listmonk_exposure_caps_script: /usr/local/sbin/dav-edge-caps.sh
+listmonk_exposure_caps_interval: 30s
+# The same per-source cap for port 80, which only redirects and answers
+# certificate challenges. A browser that follows an http link holds one
+# connection until the idle timeout closes it. One source holding both caps
+# uses 800 entries, which is 1.2 percent of the table. It takes 82 sources to
+# fill it.
+listmonk_exposure_http_conn_max: 200
+# How long the proxy waits for a request's headers, and how long it keeps an
+# idle connection. Without these, the proxy never closes a silent connection, so
+# a source could park sockets up to its cap for as long as it liked. Both ports
+# use them. A visitor who pauses past the idle time just opens a new connection.
+listmonk_exposure_read_header_timeout: 10s
+listmonk_exposure_idle_timeout: 30s
+# How long a request body may take to arrive, and how long a response may take
+# to be read. A real signup body is under 2 KB, so 15 seconds covers a link
+# that delivers about 140 bytes a second. The public paths serve small files, so
+# 30 seconds covers a slow reader. Without a limit, a request that sends its
+# headers, promises a body, and stops would stay open until the client quit.
+listmonk_exposure_read_body_timeout: 15s
+listmonk_exposure_write_timeout: 30s
+# The most sockets the proxy opens to the engine at once. A crowd of 200 people
+# in a minute is about 3 signups a second. Each takes a fraction of a second, so
+# real use stays far below this. Stalled requests wait for a timeout
+# above. This cap stops them from using up the engine's sockets.
+listmonk_exposure_upstream_max_conns: 100
+# systemd limits on Caddy. A fresh Caddy holds about 40 MB. A stalled request
+# costs about 75 KB with small headers, and the header cap bounds the rest. So
+# we let Caddy die and restart at 400 MB, which leaves the rest of the machine's
+# memory for everything else on it. There's no high mark. Keep the restart
+# delay under 60 s,
+# because systemd prints longer values in minutes and the apply compares the
+# text.
+listmonk_exposure_caddy_restart_sec: 5s
+listmonk_exposure_caddy_memory_max_mb: 400
+# Everything else on the box runs at 0 or lower. A positive score makes Caddy the
+# first to die when the kernel runs out of memory.
+listmonk_exposure_caddy_oom_score_adjust: 500
+# The size of the kernel's connection tracking table. The default is 8192, and
+# about 40 sources holding connections would fill it. Each entry costs about 320
+# bytes, so this size takes about 20 MB.
+listmonk_exposure_conntrack_max: 65536
+
+# --- WireGuard link, edge end -------------------------------------------------
+# This end only listens. It can only reach the engine's link address, even if
+# someone takes over this box.
+
+# Set false to skip the WireGuard setup (on a machine without a key yet).
+listmonk_exposure_wg_enabled: true
+listmonk_exposure_wg_if: wg0
+# Must match listmonk_tunnel_mtu on the engine.
+listmonk_exposure_wg_mtu: 1280
+
+# --- Caddy path-allowlist edge proxy ------------------------------------------
+# Caddy gets the TLS cert and sends the allowed paths to the engine.
+
+# On. Only turn this on once the site's DNS points here, or Let's Encrypt
+# requests fail and count against the rate limit.
+listmonk_exposure_caddy_enabled: true
+
+# The public site (its A record points here). Must match listmonk_public_site.
+listmonk_exposure_site: "news.directactionvillage.org"
+
+# The mail name, our MX. Caddy keeps its Let's Encrypt certificate, and
+# Postfix serves that certificate for STARTTLS on port 25. The site itself
+# answers 404 on every path. It has to match the MX host name the mail relay
+# uses.
+listmonk_exposure_mx_site: "mail.directactionvillage.org"
+
+# MTA-STS in testing mode. The mta-sts A record has to point here, or Let's
+# Encrypt requests fail and count against the rate limit. Testing mode only
+# reports failures (through TLS-RPT) and never blocks a delivery. Change the id
+# in the _mta-sts TXT record whenever the policy changes, or senders keep their
+# cached copy.
+listmonk_exposure_mta_sts_enabled: true
+listmonk_exposure_mta_sts_site: "mta-sts.directactionvillage.org"
+listmonk_exposure_mta_sts_mode: testing
+listmonk_exposure_mta_sts_max_age: 86400
+
+# The largest set of request headers the edge accepts. A real browser sends under
+# 1 KB to this site, and the largest block a signup sent was 741 bytes. Caddy's
+# default is 1 MB, and a stalled request keeps its headers in memory.
+listmonk_exposure_max_header_size: 16KB
+
+# The largest request body the edge passes on. A real signup post is under 2 KB.
+# Must match listmonk_proxy_max_body.
+listmonk_exposure_max_body: "16KB"
+
+# The engine's link port. We don't publish its address. Must match
+# listmonk_proxy_tunnel_port.
+listmonk_exposure_upstream_port: 8080
+
+# Caddy gets a Let's Encrypt certificate so subscribers' browsers trust it.
+listmonk_exposure_hsts_max_age: 31536000
+
+# The only public path under /api (the signup form's anti-spam widget). Must
+# match listmonk_proxy_captcha_path.
+listmonk_exposure_captcha_path: "/api/public/captcha/altcha"
+
+listmonk_exposure_public_paths:
+  - /subscription/*
+  - "/api/public/captcha/altcha"
+  - /uploads/*
+  - /public/static/*
+  - /public/custom.css
+  - /public/custom.js
+# The public archive is off. Must match listmonk_proxy_archive_public.
+listmonk_exposure_archive_public: false
+listmonk_exposure_archive_paths:
+  - /archive
+  - /archive/*
+  - /archive.xml
+
+# The security.txt this box serves itself. The contact address is already
+# public on our website. Move the expiry forward before it passes, and keep it
+# within a year of the edit.
+listmonk_exposure_security_contact: "directactionvillage@proton.me"
+listmonk_exposure_security_txt_expires: "2027-09-23T00:00:00.000Z"
+
+# --- grant application form: one more path through the edge -------------------
+# This box sees grant applications in the clear as they pass through. It
+# doesn't store them or keep an access log. The engine encrypts each
+# application to keys this box doesn't have.
+#
+# On. To take it down, turn this one off first, then
+# listmonk_grant_form_enabled on the engine.
+listmonk_exposure_grant_form_enabled: true
+
+# Both paths, so a trailing slash still works.
+listmonk_exposure_grant_form_paths:
+  - /grants/apply
+  - /grants/apply/

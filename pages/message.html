@@ -1,0 +1,65 @@
+<!--
+We generate the files in this repo from a private repo. Edits here would
+be overwritten by the next export. To suggest a change, open an issue or
+a pull request. We'll make it in the private repo and re-export. See
+CONTRIBUTING.md for details.
+-->
+
+{{ define "message" }}
+    {{ template "header" .}}
+
+    <h2>{{ .Data.Title }}</h2>
+    {{ if eq .Data.Title "Subscribe" }}
+    <div>
+        <p>Thanks! We saved your address.</p>
+        <p>
+            We just sent you an email with a link to confirm it. If it isn't in your inbox in
+            a few minutes, check your spam folder. You're not on the list until you click the
+            link, and we won't send you anything else before then.
+        </p>
+        <p>
+            Our group meets at 5:00pm on the first Wednesday of every month at
+            <a target="_blank" rel="noopener noreferrer" href="https://www.plumbakery.me/">Plum Bakery</a> on 347 Water Street in Gardiner.
+            Feel free to drop by if you have any questions, or email us at
+            <a target="_blank" rel="noopener noreferrer" href="mailto:directactionvillage@proton.me">directactionvillage@proton.me</a>!
+            You can also check out our website at
+            <a target="_blank" rel="noopener noreferrer" href="https://directactionvillage.org/">directactionvillage.org</a>.
+        </p>
+        <p>We keep us safe,</p>
+        <p>Direct Action Village</p>
+        <p>
+            <a target="_blank" rel="noopener noreferrer" href="https://directactionvillage.org/"><img src="/uploads/banner.png" alt="The Direct Action Village logo, which is an illustration of a covered stone well with a bucket on its rim." style="display: block; margin-left: auto; margin-right: auto; max-width: 100%; height: auto;" width="600" height="243" /></a>
+        </p>
+    </div>
+    {{ else if eq .Data.Message "Error processing request. Please retry." }}
+    <div>
+        <p>Something went wrong on our side.</p>
+        <p>
+            If you were signing up for the newsletter, we saved your address. The confirmation
+            email didn't go out just now, but you don't need to sign up again. We'll email you
+            the link when we can, and you're not on the list until you click it.
+        </p>
+        <p>
+            If you clicked a confirmation link from us, wait a few minutes and click it again.
+        </p>
+    </div>
+    {{ else }}
+    <div>
+        {{ .Data.Message }}
+    </div>
+    {{ end }}
+
+    <p class="description">
+        If that didn't do what you expected, email
+        <a target="_blank" rel="noopener noreferrer" href="mailto:directactionvillage@proton.me">directactionvillage@proton.me</a>
+        and a person will sort it out.
+    </p>
+    <p class="description">
+        You can read
+        <a target="_blank" rel="noopener noreferrer" href="https://directactionvillage.org/data_policy_081926.html">what happens to what you type here</a>,
+        and the code that handles it on
+        <a target="_blank" rel="noopener noreferrer" href="https://github.com/DirectActionVillage">our GitHub</a>.
+    </p>
+
+    {{ template "footer" .}}
+{{ end }}
